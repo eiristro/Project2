@@ -2,6 +2,7 @@
 #include <cmath>
 #include "armadillo"
 #include <lib.cpp>
+#include <time.h>
 
 using namespace std;
 using namespace arma;
@@ -82,7 +83,7 @@ int main()
     // is the number of steps from rho_min to rho_max
     rho_min = 0;
     rho_max = 5;
-    n = 200;
+    n = 100;
     n_step = n + 1;
     h = (rho_max - rho_min)/n_step;
 
@@ -112,6 +113,10 @@ int main()
         }
     }
 
+    // Finding the time for the Jacobi algo
+    clock_t start, finish;
+    start = clock();
+
     // Initializing the variables controlling the while loop
     int k, l;
     double epsilon = 1.0e-8;
@@ -124,6 +129,9 @@ int main()
         Jacobi_rotation(A, k, l, n);
         iter++;
     }
+
+    finish = clock();
+    double time_Jacobi = ((double)(finish - start)/CLOCKS_PER_SEC);
 
     // Making a vector with the diagonal (eigenvalue) elements
     // this can then be sorted by the armadillo function sort to
@@ -138,17 +146,39 @@ int main()
 
     a = sort(a);
 
+    // Creating an empty matrix z that will hold the eigenvectors
+    // we get from tqli
     double **z;
     z = new double * [n];
     for (int i = 0; i < n; i++) {
         z[i] = new double[n];
     }
+
+    // Running tqli from lib.cpp which finds the eigenvalues using
+    // an alog based on Householders algo, and finding the time it
+    // takes to run
+    start = clock();
+
     tqli(d, e, n, z);
 
+    finish = clock();
+    double time_tqli = ((finish - start)/(double)CLOCKS_PER_SEC);
+
+    // Creating an armadillo vector holding the elements of d
+    // for easy sorting
+    colvec ad(n);
+    for (int i = 0; i<n; i++) {
+        ad(i) = d[i];
+    }
+    ad = sort(ad);
+
+    // Outputting relevant variables
     cout << "Number of iterations: " << iter << endl;
-    cout << "rho_ max: " << rho_max << ", n: " << n << "\n" << endl;
+    cout << "rho_ max: " << rho_max << ", n: " << n  << endl;
+    cout << "Time taken: Jacobi: " << time_Jacobi <<
+            ", tqli: " << time_tqli << endl << endl;
     for (int i = 0; i<5; i++) {
-        cout << d[i] << ", " << a(i) << endl;
+        cout << ad(i) << ", " << a(i) << endl;
     }
 
     return 0;
