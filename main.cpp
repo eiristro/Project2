@@ -75,7 +75,7 @@ void Jacobi_rotation(mat& A, int k, int l, int n) {
 int main()
 {
     int n, n_step;
-    double h, rho_min, rho_max;
+    double h, rho_min, rho_max, omega_r, rho;
 
     // Defining the constants. rho_max should ideally be infinite
     // but for the rotation to find the eigenvalues it has to be
@@ -87,10 +87,14 @@ int main()
     n_step = n + 1;
     h = (rho_max - rho_min)/n_step;
 
+    omega_r = 5;
+
     // Setting up the potential V
     colvec V(n_step);
     for (int i = 0; i < n_step; i++) {
-        V(i) = pow((rho_min + i*h), 2.0);
+        rho = i*h;
+//        V(i) = pow((rho_min + rho), 2.0);  // One electron
+        V(i) = pow(omega_r*rho, 2) + 1.0/rho;
     }
 
     // d and e are the diagonal and off-diagonal elements of a
@@ -174,7 +178,8 @@ int main()
 
     // Outputting relevant variables
     cout << "Number of iterations: " << iter << endl;
-    cout << "rho_ max: " << rho_max << ", n: " << n  << endl;
+    cout << "rho_ max: " << rho_max << ", n: " << n
+         << ", omega_r: " << omega_r << endl;
     cout << "Time taken: Jacobi: " << time_Jacobi <<
             ", tqli: " << time_tqli << endl << endl;
     for (int i = 0; i<5; i++) {
