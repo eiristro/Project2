@@ -82,19 +82,19 @@ int main()
     // considerably lower than n. n is the size of A while n_step
     // is the number of steps from rho_min to rho_max
     rho_min = 0;
-    rho_max = 5;
+    rho_max = 10;
     n = 100;
     n_step = n + 1;
     h = (rho_max - rho_min)/n_step;
 
-    omega_r = 5;
+    omega_r = 1;
 
     // Setting up the potential V
     colvec V(n_step), Vr(n_step);
     for (int i = 0; i < n_step; i++) {
         rho = i*h;
-        Vr(i) = pow(omega_r*rho, 2) + 1.0/rho;
-        V(i) = pow(omega_r*rho, 2);            // Withouth the repulsive force
+        V(i) = pow(omega_r*rho, 2);  // + 1.0/rho;
+//        V(i) = pow(omega_r*rho, 2);            // Withouth the repulsive force
     }
 
     // d and e are the diagonal and off-diagonal elements of a
@@ -109,12 +109,10 @@ int main()
             if (i == j) {
                 A(i-1, j-1) = 2.0/(h*h) + V(i);
                 d[i-1] = A(i-1, j-1);
-                dr[i-1] = 2.0/(h*h) + Vr(i);
             }
             else if ((j == i+1) || (j == i-1)) {
                 A(i-1, j-1) = -1.0/(h*h);
                 e[i-1] = A(i-1, j-1);
-                er[i-1] = e[i-1];
             }
             else {
                 A(i-1, j-1) = 0;
@@ -133,11 +131,11 @@ int main()
     int iter = 0;
     double max_offdiag = maxoffdiag(A, k, l, n);
 
-    while (fabs(max_offdiag) > epsilon && (double) iter < max_num_iter) {
-        max_offdiag = maxoffdiag(A, k, l, n);
-        Jacobi_rotation(A, k, l, n);
-        iter++;
-    }
+//    while (fabs(max_offdiag) > epsilon && (double) iter < max_num_iter) {
+//        max_offdiag = maxoffdiag(A, k, l, n);
+//        Jacobi_rotation(A, k, l, n);
+//        iter++;
+//    }
 
     finish = clock();
     double time_Jacobi = ((double)(finish - start)/CLOCKS_PER_SEC);
@@ -162,11 +160,8 @@ int main()
     for (int i = 0; i < n; i++) {
         z[i] = new double[n];
     }
-
-    double **zr;
-    zr = new double * [n];
-    for (int i = 0; i < n; i++) {
-        zr[i] = new double[n];
+    for (int i = 0; i<n; i++) {
+        z[i][i] = 1;
     }
 
     // Running tqli from lib.cpp which finds the eigenvalues using
@@ -175,7 +170,6 @@ int main()
     start = clock();
 
     tqli(d, e, n, z);
-    tqli(dr, er, n, zr);
 
     finish = clock();
     double time_tqli = ((finish - start)/(double)CLOCKS_PER_SEC);
@@ -188,11 +182,6 @@ int main()
     }
     ad = sort(ad);
 
-    colvec adr(n);
-    for (int i = 0; i<n; i++) {
-        adr(i) = dr[i];
-    }
-    adr = sort(adr);
 
     // Finding the eigenvector corresponding to the lowest eigenvalue
     double min_d = ad(n-1);
@@ -210,20 +199,6 @@ int main()
     }
 
 
-    double min_dr = adr(n-1);
-    int mr;
-    for (int i = 0; i<n; i++) {
-        if (dr[i] < min_dr) {
-            min_dr = dr[i];
-            mr = i;
-        }
-    }
-
-    colvec min_zr(n);
-    for (int i = 0; i<n; i++) {
-        min_zr(i) = zr[i][mr];
-    }
-
     // Outputting relevant variables
     cout << "Number of iterations: " << iter << endl;
     cout << "rho_ max: " << rho_max << ", n: " << n
@@ -232,19 +207,15 @@ int main()
             ", tqli: " << time_tqli << endl << endl;
     cout << "Non-int,   int,    Jacobi" << endl;
     for (int i = 0; i<5; i++) {
-        cout << ad(i) << ", " << adr(i) << ", " << a(i) << endl;
+        cout << ad(i) << endl; // ", " << adr(i) << ", " << a(i) << endl;
     }
 
     // Outputting z to a file for plotting in python
     char buffer[50], buffer2[50];
     int omega100 = (int) 100*omega_r;
 
-    cout << omega100;
-    sprintf(buffer, "../Project2/zdata%d.dat", omega100);
+    sprintf(buffer, "../Project2/zdatar%d.dat", omega100);
     min_z.save(buffer, raw_ascii);
-
-    sprintf(buffer2, "../Project2/zdatar%d.dat", omega100);
-    min_zr.save(buffer2, raw_ascii);
 
     return 0;
 }
