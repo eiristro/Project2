@@ -90,16 +90,17 @@ int main()
     omega_r = 5;
 
     // Setting up the potential V
-    colvec V(n_step);
+    colvec V(n_step), Vr(n_step);
     for (int i = 0; i < n_step; i++) {
         rho = i*h;
-//        V(i) = pow((rho_min + rho), 2.0);  // One electron
-        V(i) = pow(omega_r*rho, 2) + 1.0/rho;
+        Vr(i) = pow(omega_r*rho, 2) + 1.0/rho;
+        V(i) = pow(omega_r*rho, 2);            // Withouth the repulsive force
     }
 
     // d and e are the diagonal and off-diagonal elements of a
-    // used in the function tqli from lib.cpp
-    double d[n], e[n];
+    // used in the function tqli from lib.cpp. The r versions include
+    // the repulsive force
+    double d[n], dr[n], e[n], er[n];
 
     // Setting up the matrix running from V(1) to V(n_step - 1)
     mat A(n, n);
@@ -107,10 +108,14 @@ int main()
         for (int j = 1; j < n_step; j++) {
             if (i == j) {
                 A(i-1, j-1) = 2.0/(h*h) + V(i);
-                d[i-1] = A(i-1, j-1); }
+                d[i-1] = A(i-1, j-1);
+                dr[i-1] = 2.0/(h*h) + Vr(i);
+            }
             else if ((j == i+1) || (j == i-1)) {
                 A(i-1, j-1) = -1.0/(h*h);
-                e[i-1] = A(i-1, j-1); }
+                e[i-1] = A(i-1, j-1);
+                er[i-1] = e[i-1];
+            }
             else {
                 A(i-1, j-1) = 0;
             }
@@ -158,12 +163,19 @@ int main()
         z[i] = new double[n];
     }
 
+    double **zr;
+    zr = new double * [n];
+    for (int i = 0; i < n; i++) {
+        zr[i] = new double[n];
+    }
+
     // Running tqli from lib.cpp which finds the eigenvalues using
     // an alog based on Householders algo, and finding the time it
     // takes to run
     start = clock();
 
     tqli(d, e, n, z);
+    tqli(dr, er, n, zr);
 
     finish = clock();
     double time_tqli = ((finish - start)/(double)CLOCKS_PER_SEC);
@@ -176,15 +188,63 @@ int main()
     }
     ad = sort(ad);
 
+    colvec adr(n);
+    for (int i = 0; i<n; i++) {
+        adr(i) = dr[i];
+    }
+    adr = sort(adr);
+
+    // Finding the eigenvector corresponding to the lowest eigenvalue
+    double min_d = ad(n-1);
+    int m;
+    for (int i = 0; i<n; i++) {
+        if (d[i] < min_d) {
+            min_d = d[i];
+            m = i;
+        }
+    }
+
+    colvec min_z(n);
+    for (int i = 0; i<n; i++) {
+        min_z(i) = z[i][m];
+    }
+
+
+    double min_dr = adr(n-1);
+    int mr;
+    for (int i = 0; i<n; i++) {
+        if (dr[i] < min_dr) {
+            min_dr = dr[i];
+            mr = i;
+        }
+    }
+
+    colvec min_zr(n);
+    for (int i = 0; i<n; i++) {
+        min_zr(i) = zr[i][mr];
+    }
+
     // Outputting relevant variables
     cout << "Number of iterations: " << iter << endl;
     cout << "rho_ max: " << rho_max << ", n: " << n
          << ", omega_r: " << omega_r << endl;
     cout << "Time taken: Jacobi: " << time_Jacobi <<
             ", tqli: " << time_tqli << endl << endl;
+    cout << "Non-int,   int,    Jacobi" << endl;
     for (int i = 0; i<5; i++) {
-        cout << ad(i) << ", " << a(i) << endl;
+        cout << ad(i) << ", " << adr(i) << ", " << a(i) << endl;
     }
+
+    // Outputting z to a file for plotting in python
+    char buffer[50], buffer2[50];
+    int omega100 = (int) 100*omega_r;
+
+    cout << omega100;
+    sprintf(buffer, "../Project2/zdata%d.dat", omega100);
+    min_z.save(buffer, raw_ascii);
+
+    sprintf(buffer2, "../Project2/zdatar%d.dat", omega100);
+    min_zr.save(buffer2, raw_ascii);
 
     return 0;
 }
